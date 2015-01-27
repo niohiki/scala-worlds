@@ -1,5 +1,5 @@
 package org.niohiki.worlds
 
-class World {
+class World(val name: String) {
   
 }
