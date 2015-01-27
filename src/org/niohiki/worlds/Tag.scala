@@ -13,5 +13,5 @@ class Tag {
       properties(key).asInstanceOf[PropertyBin[T]]
     }
   }
-  def :>[T](key: Property[T]) = Some(properties(key)).get.apply()
+  def :>[T](key: Property[T]) = (this->key).apply()
 }

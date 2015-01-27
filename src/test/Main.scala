@@ -3,6 +3,7 @@ package test
 import org.niohiki.worlds._
 
 object Main {
+  def hola(s: String)(implicit w: World):Unit = println(s+" "+w)
   def main(args:Array[String]){
     println("hi")
     val w = new World
@@ -10,9 +11,9 @@ object Main {
       println("hoo")
     }
     val ss = new Tag
-    val name = new Property[String]{ def default = ""}
-    val age = new Property[Int]{ def default = 0}
-    val car = new Property[Tag]{ def default = new Tag}
+    val name = new StringProperty
+    val age = new IntProperty
+    val car = new TagProperty
     ss->name := "jajaja"
     ss->age := 5
     ss->car->name:= "hi ho hu"
