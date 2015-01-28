@@ -1,12 +1,12 @@
 package org.niohiki.worlds
 
-abstract class Property[+T] {
-  def default: T
+abstract class PropertyLabel[+T] {
+  def default: Option[T]
 }
 class PropertyBin[T](private var content: Option[T]){
   def :=(t:T) = content = Some(t)
   def apply():T = content.get
 }
-class TagProperty extends Property[Tag]{ def default = new Tag }
-class IntProperty extends Property[Int]{ def default = 0 }
-class StringProperty extends Property[String]{ def default = "" }
+class TagProperty extends PropertyLabel[Tag]{ def default = Some(new Tag) }
+class IntProperty extends PropertyLabel[Int]{ def default = None }
+class StringProperty extends PropertyLabel[String]{ def default = None }

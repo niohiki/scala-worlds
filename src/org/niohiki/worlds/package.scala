@@ -19,8 +19,8 @@ package object worlds {
           TypeApply(Select(identifier, TermName("$minus$greater")), typeList),
           List(property)) if identifier.tpe <:< c.typeOf[Tag] =>
           Apply(
-            TypeApply(Select(identifier, TermName("getIn")), typeList),
-            List(property, w.tree))
+            TypeApply(Select(w.tree, TermName("get")), typeList),
+            List(identifier, property))
         case other => super.transform(other)
       }
     }
