@@ -1,6 +1,6 @@
 package org.niohiki.worlds
 
-class Tag {
+final class Tag {
   def ->[T](key: PropertyLabel[T]): PropertyBin[T] =
     throw new OutsideOfWorldException
 }

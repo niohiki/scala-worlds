@@ -8,10 +8,17 @@ package object worlds {
   def inside_impl(c: Context)(
     w: c.Expr[World])(f: c.Expr[_]): c.Expr[Unit] = {
     import c.universe._
-    c.Expr(c.untypecheck(generateTransfomer(c)(w).transform(f.tree)))
+    c.Expr(parseGetSet(c)(w, f.tree))
   }
 
-  def generateTransfomer(c: Context)(w: c.Expr[World]) = new c.universe.Transformer {
+  def parseGetSet(c: Context)(w: c.Expr[World],
+                              t: c.universe.Tree): c.universe.Tree = {
+    val getT = newGetTransfomer(c)(w)
+    val setT = newSetTransfomer(c)(w)
+    c.untypecheck(setT.transform(getT.transform(t)))
+  }
+
+  def newGetTransfomer(c: Context)(w: c.Expr[World]) = new c.universe.Transformer {
     import c.universe._
     override def transform(tree: Tree): Tree = {
       tree match {
@@ -21,6 +28,19 @@ package object worlds {
           Apply(
             TypeApply(Select(w.tree, TermName("get")), typeList),
             List(identifier, property))
+        case other => super.transform(other)
+      }
+    }
+  }
+
+  def newSetTransfomer(c: Context)(w: c.Expr[World]) = new c.universe.Transformer {
+    import c.universe._
+    override def transform(tree: Tree): Tree = {
+      tree match {
+        case Apply(Select(identifier, TermName("$colon$eq")), List(value)) =>
+          Apply(
+            TypeApply(Select(w.tree, TermName("set")), List(TypeTree())),
+            List(identifier, value))
         case other => super.transform(other)
       }
     }
