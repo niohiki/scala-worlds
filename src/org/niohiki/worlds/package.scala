@@ -8,63 +8,53 @@ package object worlds {
   def lulz(x: Any): Unit = macro lulz_impl
   def lulz_impl(c: Context)(x: c.Tree): c.Tree = {
     import c.universe._
+
     val ident = Ident(TermName(c.freshName("dfsf")))
 
     q"""{
           val $ident = $x
           println($ident)
         }"""
+
+    x match {
+      case q"$iden.$met($thin)" => {
+        val nam: String = thin.toString
+        val num = 5
+        val two = 1 + 1
+        val four = q"$num+$two"
+        q"""println($nam)"""
+      }
+    }
   }
 
   def inside(inputWorld: World)(f: => Unit): Unit = macro inside_impl
-  def inside_impl(c: Context)(
-    inputWorld: c.Expr[World])(f: c.Expr[_]): c.Expr[Unit] = {
+  def inside_impl(c: Context)(inputWorld: c.Tree)(f: c.Tree): c.Tree = {
     import c.universe._
-    def treeTransform(f: Tree => Tree, t: Tree): Tree = {
+    def treeTransform(t: Tree, f: Tree => Tree): Tree = {
       c.untypecheck(new Transformer {
         override def transform(tree: Tree): Tree = {
           f(super.transform(tree))
         }
       }.transform(t))
     }
-    val tokenSymbol = c.typecheck(reify { localWorld }.tree).symbol
-    val returnTree = treeTransform(_ match {
-      case x => {
-        try {
-          val symbol = c.typecheck(x).symbol
-          if (symbol != null && symbol.fullName.equals(tokenSymbol.fullName)) {
-            inputWorld.tree
-          } else {
-            x
-          }
-        } catch {
-          case ex: TypecheckException => x
-        }
+
+    val tokenSymbol = (q"localWorld").symbol
+    val returnTree = treeTransform(f, _ match {
+      case q"$tag->[$types]($property)" if c.typecheck(
+        tag).tpe <:< c.typeOf[Tag] =>
+        q"$inputWorld.get[$types]($tag,$property)"
+      case q"$tag-<[$types]($property)" if c.typecheck(
+        tag).tpe <:< c.typeOf[Tag] =>
+        q"($inputWorld.get[$types]($tag,$property))()"
+      case q"$property:=($value)" => q"$inputWorld.set($property,$value)"
+      case other => {
+        val symbol = c.typecheck(other, silent = true).symbol
+        if (symbol != null && symbol.fullName.equals(tokenSymbol.fullName)) {
+          inputWorld
+        } else other
       }
-    }, treeTransform(_ match {
-      case Apply(
-        TypeApply(Select(identifier, TermName("$minus$greater")), typeList),
-        List(property)) if c.typecheck(identifier).tpe <:< c.typeOf[Tag] => {
-        Apply(
-          TypeApply(Select(inputWorld.tree, TermName("get")), typeList),
-          List(identifier, property))
-      }
-      case Apply(
-        TypeApply(Select(identifier, TermName("$minus$less")), typeList),
-        List(property)) if c.typecheck(identifier).tpe <:< c.typeOf[Tag] => {
-        val gettingExp: c.Expr[PropertyBin[_]] = c.Expr(Apply(
-          TypeApply(Select(inputWorld.tree, TermName("get")), typeList),
-          List(identifier, property)))
-        reify { (gettingExp.splice)() }.tree
-      }
-      case Apply(Select(identifier, TermName("$colon$eq")),
-        List(value)) if c.typecheck(identifier).tpe <:< c.typeOf[PropertyBin[_]] =>
-        Apply(
-          TypeApply(Select(inputWorld.tree, TermName("set")), List(TypeTree())),
-          List(identifier, value))
-      case other => other
-    }, f.tree))
-    c.Expr(returnTree)
+    })
+    returnTree
   }
 
   def inspect(e: Any): Unit = macro inspect_impl
