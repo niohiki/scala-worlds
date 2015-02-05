@@ -5,6 +5,8 @@ final class Tag {
     throw new OutsideOfWorldException
   def -<[T](key: PropertyLabel[T]): T =
     throw new OutsideOfWorldException
+  def properties: List[PropertyLabel[_]] =
+    throw new OutsideOfWorldException
 }
 class OutsideOfWorldException
   extends Exception("Tags must be used within an inside clause")
