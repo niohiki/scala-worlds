@@ -2,45 +2,68 @@ package org.niohiki
 
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox.Context
+import scala.reflect.macros.TypecheckException
 
 package object worlds {
   def inside[A](w: World)(f: => Unit): Unit = macro inside_impl
   def inside_impl(c: Context)(
     w: c.Expr[World])(f: c.Expr[_]): c.Expr[Unit] = {
     import c.universe._
-    c.Expr(parseGetSet(c)(w, f.tree))
-  }
 
-  def parseGetSet(c: Context)(w: c.Expr[World],
-                              t: c.universe.Tree): c.universe.Tree = {
-    val getT = newGetTransfomer(c)(w)
-    val setT = newSetTransfomer(c)(w)
-    c.untypecheck(setT.transform(getT.transform(t)))
-  }
-
-  def newGetTransfomer(c: Context)(w: c.Expr[World]) = new c.universe.Transformer {
-    import c.universe._
-    override def transform(tree: Tree): Tree = {
-      tree match {
-        case Apply(
-          TypeApply(Select(identifier, TermName("$minus$greater")), typeList),
-          List(property)) if identifier.tpe <:< c.typeOf[Tag] =>
-          Apply(
-            TypeApply(Select(w.tree, TermName("get")), typeList),
-            List(identifier, property))
-        case other => super.transform(other)
-      }
+    def treeTransform(f: Tree => Tree, t: Tree): Tree = {
+      c.untypecheck(new Transformer {
+        override def transform(tree: Tree): Tree = {
+          f(super.transform(tree))
+        }
+      }.transform(t))
     }
+
+    val tokenSymbol = c.typecheck(reify { TokenWorld }.tree).symbol
+    val resTree = treeTransform(_ match {
+      case x => {
+        try {
+          val symbol = c.typecheck(x).symbol
+          if (symbol != null && symbol.fullName.equals(tokenSymbol.fullName)) {
+            w.tree
+          } else {
+            x
+          }
+        } catch {
+          case ex: TypecheckException => x
+        }
+      }
+    }, treeTransform(_ match {
+      case Apply(
+        TypeApply(Select(identifier, TermName("$minus$greater")), typeList),
+        List(property)) if c.typecheck(identifier).tpe <:< c.typeOf[Tag] => {
+        Apply(
+          TypeApply(Select(w.tree, TermName("get")), typeList),
+          List(identifier, property))
+      }
+      case Apply(
+        TypeApply(Select(identifier, TermName("$minus$less")), typeList),
+        List(property)) if c.typecheck(identifier).tpe <:< c.typeOf[Tag] => {
+        val gettingExp: c.Expr[PropertyBin[_]] = c.Expr(Apply(
+          TypeApply(Select(w.tree, TermName("get")), typeList),
+          List(identifier, property)))
+        reify { (gettingExp.splice)() }.tree
+      }
+      case Apply(Select(identifier, TermName("$colon$eq")),
+        List(value)) if c.typecheck(identifier).tpe <:< c.typeOf[PropertyBin[_]] =>
+        Apply(
+          TypeApply(Select(w.tree, TermName("set")), List(TypeTree())),
+          List(identifier, value))
+      case other => other
+    }, f.tree))
+    c.Expr(resTree)
   }
 
-  def newSetTransfomer(c: Context)(w: c.Expr[World]) = new c.universe.Transformer {
+  def newTokenTransfomer(c: Context)(w: c.Expr[World]) = new c.universe.Transformer {
     import c.universe._
     override def transform(tree: Tree): Tree = {
+      val xx = reify { TokenWorld }.tree
+      if (tree.equals(xx)) throw new Exception
       tree match {
-        case Apply(Select(identifier, TermName("$colon$eq")), List(value)) =>
-          Apply(
-            TypeApply(Select(w.tree, TermName("set")), List(TypeTree())),
-            List(identifier, value))
         case other => super.transform(other)
       }
     }
@@ -59,4 +82,6 @@ package object worlds {
   }
 
   implicit def property2value[T](property: PropertyBin[T]): T = property()
+  sealed class TokenWorldClass extends World
+  implicit val TokenWorld = new TokenWorldClass
 }

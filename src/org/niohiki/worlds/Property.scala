@@ -6,6 +6,7 @@ abstract class PropertyLabel[+T] {
 abstract class PropertyBin[T] {
   def :=(t: T): Unit = {}
   def apply(): T
+  override def toString = apply().toString
 }
 class TagProperty extends PropertyLabel[Tag] { def default = Some(new Tag) }
 class IntProperty extends PropertyLabel[Int] { def default = None }
