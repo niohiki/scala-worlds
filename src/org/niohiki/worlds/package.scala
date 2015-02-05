@@ -7,12 +7,12 @@ import scala.reflect.macros.TypecheckException
 import scala.reflect.macros.TypecheckException
 
 package object worlds {
-  def branch(inputWorld: World)(f: => Unit): Unit = macro branch_impl
+  def branch[T](inputWorld: World)(f: => T): T = macro branch_impl
   def branch_impl(c: Context)(inputWorld: c.Tree)(f: c.Tree): c.Tree = {
     import c.universe._
     q"""inside($inputWorld.branch("branch"))($f)"""
   }
-  def inside(inputWorld: World)(f: => Unit): Unit = macro inside_impl
+  def inside[T](inputWorld: World)(f: => T): T = macro inside_impl
   def inside_impl(c: Context)(inputWorld: c.Tree)(f: c.Tree): c.Tree = {
     import c.universe._
     def treeTransform(t: Tree, f: Tree => Tree): Tree = {
@@ -22,7 +22,6 @@ package object worlds {
         }
       }.transform(c.typecheck(t)))
     }
-
     val worldIdentifier = Ident(TermName(c.freshName("internalWorld")))
     val tokenSymbol = c.typecheck(q"localWorld").symbol
     val getValueTree = treeTransform(f, _ match {
