@@ -5,11 +5,21 @@ import scala.reflect.macros.blackbox.Context
 import scala.reflect.macros.TypecheckException
 
 package object worlds {
-  def inside[A](w: World)(f: => Unit): Unit = macro inside_impl
-  def inside_impl(c: Context)(
-    w: c.Expr[World])(f: c.Expr[_]): c.Expr[Unit] = {
+  def lulz(x: Any): Unit = macro lulz_impl
+  def lulz_impl(c: Context)(x: c.Tree): c.Tree = {
     import c.universe._
+    val ident = Ident(TermName(c.freshName("dfsf")))
 
+    q"""{
+          val $ident = $x
+          println($ident)
+        }"""
+  }
+
+  def inside(inputWorld: World)(f: => Unit): Unit = macro inside_impl
+  def inside_impl(c: Context)(
+    inputWorld: c.Expr[World])(f: c.Expr[_]): c.Expr[Unit] = {
+    import c.universe._
     def treeTransform(f: Tree => Tree, t: Tree): Tree = {
       c.untypecheck(new Transformer {
         override def transform(tree: Tree): Tree = {
@@ -17,14 +27,13 @@ package object worlds {
         }
       }.transform(t))
     }
-
     val tokenSymbol = c.typecheck(reify { localWorld }.tree).symbol
-    val resTree = treeTransform(_ match {
+    val returnTree = treeTransform(_ match {
       case x => {
         try {
           val symbol = c.typecheck(x).symbol
           if (symbol != null && symbol.fullName.equals(tokenSymbol.fullName)) {
-            w.tree
+            inputWorld.tree
           } else {
             x
           }
@@ -37,25 +46,25 @@ package object worlds {
         TypeApply(Select(identifier, TermName("$minus$greater")), typeList),
         List(property)) if c.typecheck(identifier).tpe <:< c.typeOf[Tag] => {
         Apply(
-          TypeApply(Select(w.tree, TermName("get")), typeList),
+          TypeApply(Select(inputWorld.tree, TermName("get")), typeList),
           List(identifier, property))
       }
       case Apply(
         TypeApply(Select(identifier, TermName("$minus$less")), typeList),
         List(property)) if c.typecheck(identifier).tpe <:< c.typeOf[Tag] => {
         val gettingExp: c.Expr[PropertyBin[_]] = c.Expr(Apply(
-          TypeApply(Select(w.tree, TermName("get")), typeList),
+          TypeApply(Select(inputWorld.tree, TermName("get")), typeList),
           List(identifier, property)))
         reify { (gettingExp.splice)() }.tree
       }
       case Apply(Select(identifier, TermName("$colon$eq")),
         List(value)) if c.typecheck(identifier).tpe <:< c.typeOf[PropertyBin[_]] =>
         Apply(
-          TypeApply(Select(w.tree, TermName("set")), List(TypeTree())),
+          TypeApply(Select(inputWorld.tree, TermName("set")), List(TypeTree())),
           List(identifier, value))
       case other => other
     }, f.tree))
-    c.Expr(resTree)
+    c.Expr(returnTree)
   }
 
   def inspect(e: Any): Unit = macro inspect_impl
