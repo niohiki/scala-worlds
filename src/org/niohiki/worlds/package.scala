@@ -18,7 +18,7 @@ package object worlds {
       }.transform(t))
     }
 
-    val tokenSymbol = c.typecheck(reify { TokenWorld }.tree).symbol
+    val tokenSymbol = c.typecheck(reify { localWorld }.tree).symbol
     val resTree = treeTransform(_ match {
       case x => {
         try {
@@ -58,17 +58,6 @@ package object worlds {
     c.Expr(resTree)
   }
 
-  def newTokenTransfomer(c: Context)(w: c.Expr[World]) = new c.universe.Transformer {
-    import c.universe._
-    override def transform(tree: Tree): Tree = {
-      val xx = reify { TokenWorld }.tree
-      if (tree.equals(xx)) throw new Exception
-      tree match {
-        case other => super.transform(other)
-      }
-    }
-  }
-
   def inspect(e: Any): Unit = macro inspect_impl
   def inspect_impl(c: Context)(e: c.Expr[_]): c.Expr[Unit] = {
     import c.universe._
@@ -82,6 +71,5 @@ package object worlds {
   }
 
   implicit def property2value[T](property: PropertyBin[T]): T = property()
-  sealed class TokenWorldClass extends World
-  implicit val TokenWorld = new TokenWorldClass
+  implicit val localWorld = new World
 }
